@@ -106,7 +106,6 @@ function plot_graph(g::Graph)
     )
 end
 
-
 # """
 #     initial_state(::Array{Int64,1})
 
