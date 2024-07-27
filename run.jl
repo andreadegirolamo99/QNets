@@ -351,6 +351,67 @@ function choose_edge(g::Graph, v_start::Int64, v_end::Int64; σ = 0.0, λmean = 
     return solutions[rand(valid_sols)]
 end
 
+function filter_path(paths, g::Graph, v_start::Int, v_end::Int)
+    connections = [[v] for v in get_neighbors(g, v_start)]
+    pending = []
+    ignore = false
+
+    for i in eachindex(paths)
+        op = paths[i]
+        if length(op) == 3
+            if ignore
+                ignore = false
+            else
+                if op[1] == v_start
+                    push!(connections[findfirst(seq -> seq[end] == op[2], connections)], op[3])
+                else
+                    push!(pending, op)
+                end
+            end
+        else
+            if !isempty(pending)
+                push!(connections[findfirst(seq -> seq[end] == pending[1][1], connections)], pending[1][2], pending[2][2], pending[2][3])
+                pending = []
+                ignore = true
+            else
+                idx = op[1] == v_start ? 2 : 1
+                paths_to_merge = findall(seq -> seq[end] == op[idx], connections)
+                connections[paths_to_merge[1]] = filter(v -> v != op[idx], unique([connections[paths_to_merge[1]]..., connections[paths_to_merge[2]]...]))
+                deleteat!(connections, paths_to_merge[2])
+                push!(connections[paths_to_merge[1]], op[idx])
+            end
+        end
+    end
+
+    sequence = [v_start, connections[findfirst(seq -> seq[end] == v_end, connections)]...]
+    g_new = deepcopy(g)
+
+    final_path = []
+    for i in eachindex(paths)
+        path = paths[i]
+        if all(node in sequence for node in path)
+            if length(path) == 3 && are_neighbors(g_new, path[1], path[2]) && are_neighbors(g_new, path[2], path[3])
+                push!(final_path, path)
+                entanglement_swapping!(g_new, path...)
+                if length(get_weights(g_new, path[1], path[3])) > 1 && ((i+1 <= length(paths) && sort(paths[i+1]) != sort([path[1], path[3]])) || i == length(paths))
+                    push!(final_path, [path[1], path[3]])
+                    entanglement_distillation!(g_new, path[1], path[3])
+                end
+            else
+                if are_neighbors(g_new, path[1], path[2]) && length(get_weights(g_new, path[1], path[2])) > 1
+                    push!(final_path, path)
+                    entanglement_distillation!(g_new, path...)
+                    if sort([path[1], path[2]]) == sort([v_start, v_end]) && get_weights(g, v_start, v_end) == 0.5
+                        return final_path
+                    end
+                end
+            end
+        end
+    end
+
+    return final_path, g_new
+end
+
 function find_path(g::Graph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, λmean=0.5, progressbar=true)
 
     start_end_dist = distance(g, v_end)[v_start]
@@ -400,9 +461,9 @@ function find_path(g::Graph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, �
                 end
 
                 if iter < 2*length(vertices(g))
+                    new_path, g_new = filter_path(new_path, g, v_start, v_end)
                     paths[i] = new_path
                     λs[i] = get_weights(g_new, v_start, v_end)
-                    
                     destroyed_links[i] = [[v1, v2] for v1 in unique(collect(Iterators.flatten(new_path))) 
                                                 for v2 in unique(collect(Iterators.flatten(new_path)))
                                                 if v1 < v2 && are_neighbors(g, v1, v2) && (!are_neighbors(g_new, v1, v2) || 
@@ -439,6 +500,7 @@ function find_path(g::Graph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, �
             end
 
             if iter < 4*start_end_dist
+                new_path, g_new = filter_path(new_path, g, v_start, v_end)
                 paths[i] = new_path
                 λs[i] = get_weights(g_new, v_start, v_end)
                 destroyed_links[i] = [[v1, v2] for v1 in unique(collect(Iterators.flatten(new_path))) 
@@ -456,7 +518,7 @@ function find_path(g::Graph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, �
     N = Inf
 
     for i in findall(path -> path ≠ ["NOT FOUND"], paths)
-        if λs[i] < λmin || (isapprox(λs[i], λmin, atol=1e-2) && length(destroyed_links[i]) < N)
+        if λs[i] < λmin || (isapprox(λs[i], λmin, atol=1e-3) && length(destroyed_links[i]) < N)
             path = deepcopy(paths[i])
             λmin = λs[i]
             N = length(destroyed_links[i])
@@ -472,7 +534,7 @@ function find_path(g::Graph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, �
             end
 
             if independent && λs[i] > 0.5 && λs[j] > 0.5 && λmin > λdistill(λs[i], λs[j])
-                path = [paths[i]..., paths[j]...]
+                path = [paths[i]..., paths[j]..., [v_start, v_end]]
                 λmin = λdistill(λs[i], λs[j])
                 N = length(destroyed_links[i]) + length(destroyed_links[j])
             end
