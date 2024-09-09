@@ -172,6 +172,29 @@ function square_lattice(n::Int64; λ=0.5)
 
     return g
 end
+function diagonal_square_lattice(n::Int64; λ=0.5)
+    g = Graph(n^2)
+
+    for j in 1:n-1
+        for i in 1:n-1
+            add_edge!(g, i+n*(j-1), i+n*(j-1)+1, λ)
+            add_edge!(g, i+n*(j-1), i+n*j+1, λ)
+        end
+    end
+    for i in 1:n-1
+        add_edge!(g, i+n*(n-1), i+n*(n-1)+1, λ)
+    end
+
+    for j in 1:n-1
+        for i in 1:n-1
+            add_edge!(g, i+n*(j-1), i+n*j, λ)
+            add_edge!(g, i+n*(j-1)+1, i+n*j, λ)
+        end
+        add_edge!(g, n*j, n*(j+1), λ)
+    end
+
+    return g
+end
 
 function noisy_square_lattice(n::Int64; δ=1e-6)
     g = Graph(n^2)
@@ -185,6 +208,30 @@ function noisy_square_lattice(n::Int64; δ=1e-6)
         for i in 1:n
             add_edge!(g, i+n*(j-1), i+n*j, sample_λ(δ))
         end
+    end
+
+    return g
+end
+
+function noisy_diagonal_square_lattice(n::Int64; δ=1e-6)
+    g = Graph(n^2)
+
+    for j in 1:n-1
+        for i in 1:n-1
+            add_edge!(g, i+n*(j-1), i+n*(j-1)+1, sample_λ(δ))
+            add_edge!(g, i+n*(j-1), i+n*j+1, sample_λ(δ))
+        end
+    end
+    for i in 1:n-1
+        add_edge!(g, i+n*(n-1), i+n*(n-1)+1, sample_λ(δ))
+    end
+
+    for j in 1:n-1
+        for i in 1:n-1
+            add_edge!(g, i+n*(j-1), i+n*j, sample_λ(δ))
+            add_edge!(g, i+n*(j-1)+1, i+n*j, sample_λ(δ))
+        end
+        add_edge!(g, n*j, n*(j+1), sample_λ(δ))
     end
 
     return g
@@ -370,9 +417,11 @@ function filter_path(paths, g::Graph, v_start::Int, v_end::Int)
             end
         else
             if !isempty(pending)
-                push!(connections[findfirst(seq -> seq[end] == pending[1][1], connections)], pending[1][2], pending[2][2], pending[2][3])
-                pending = []
-                ignore = true
+                if length(pending) > 1
+                    push!(connections[findfirst(seq -> seq[end] == pending[1][1], connections)], pending[1][2], pending[2][2], pending[2][3])
+                    pending = []
+                    ignore = true
+                end
             else
                 idx = op[1] == v_start ? 2 : 1
                 paths_to_merge = findall(seq -> seq[end] == op[idx], connections)
@@ -417,6 +466,7 @@ function find_path(g::Graph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, �
     start_end_dist = distance(g, v_end)[v_start]
     actual_σs = collect(range(0.0, σ, samples))
 
+    unfiltered_paths = fill([], samples)
     paths = fill([], samples)
     λs = fill(0.0, samples)
     destroyed_links = fill([], samples)
@@ -435,13 +485,22 @@ function find_path(g::Graph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, �
                 while !new_connection && iter < 2*length(vertices(g))
                     solution = choose_edge(g_new, v_start, v_end, σ=actual_σs[i], λmean=λmean)
                     if !isnothing(solution)
-                        for op in solution
+                        final_sol = []
+                        for (k, op) in enumerate(solution)
                             if length(op) == 3
+                                push!(final_sol, op)
                                 entanglement_swapping!(g_new, op[1], op[2], op[3])
+                                if length(get_weights(g_new, op[1], op[3])) > 1 && ((k < length(solution) && sort(solution[k+1]) != sort([op[1], op[3]])) || k == length(solution))
+                                    push!(final_sol, [op[1], op[3]])
+                                    entanglement_distillation!(g_new, op[1], op[3])
+                                end
                             elseif length(op) == 2
+                                push!(final_sol, op)
                                 entanglement_distillation!(g_new, op[1], op[2])
                             end
                         end
+
+                        solution = final_sol
 
                         distills = [[v1, v2] for v1 in unique(collect(Iterators.flatten(solution))) 
                                             for v2 in unique(collect(Iterators.flatten(solution)))
@@ -461,6 +520,7 @@ function find_path(g::Graph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, �
                 end
 
                 if iter < 2*length(vertices(g))
+                    unfiltered_paths[i] = new_path
                     new_path, g_new = filter_path(new_path, g, v_start, v_end)
                     paths[i] = new_path
                     λs[i] = get_weights(g_new, v_start, v_end)
@@ -477,13 +537,23 @@ function find_path(g::Graph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, �
             while !are_neighbors(g_new, v_start, v_end) && iter < 4*start_end_dist
                 solution = choose_edge(g_new, v_start, v_end, σ=actual_σs[i], λmean=λmean)
                 if !isnothing(solution)
-                    for op in solution
+                    final_sol = []
+                    for (k, op) in enumerate(solution)
                         if length(op) == 3
+                            push!(final_sol, op)
                             entanglement_swapping!(g_new, op[1], op[2], op[3])
+                            if length(get_weights(g_new, op[1], op[3])) > 1 && ((k < length(solution) && sort(solution[k+1]) != sort([op[1], op[3]])) || k == length(solution))
+                                push!(final_sol, [op[1], op[3]])
+                                entanglement_distillation!(g_new, op[1], op[3])
+                            end
                         elseif length(op) == 2
+                            push!(final_sol, op)
                             entanglement_distillation!(g_new, op[1], op[2])
                         end
                     end
+
+                    solution = final_sol
+
                     distills = [[v1, v2] for v1 in unique(collect(Iterators.flatten(solution))) 
                                             for v2 in unique(collect(Iterators.flatten(solution)))
                                             if v1 < v2 && are_neighbors(g_new, v1, v2) && length(get_weights(g_new, v1, v2)) == 2]
@@ -500,6 +570,7 @@ function find_path(g::Graph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, �
             end
 
             if iter < 4*start_end_dist
+                unfiltered_paths[i] = new_path
                 new_path, g_new = filter_path(new_path, g, v_start, v_end)
                 paths[i] = new_path
                 λs[i] = get_weights(g_new, v_start, v_end)
@@ -518,6 +589,14 @@ function find_path(g::Graph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, �
     N = Inf
 
     for i in findall(path -> path ≠ ["NOT FOUND"], paths)
+        # println("Path to connect $(v_start) and $(v_end) before and after filtering:")
+        # println(unfiltered_paths[i])
+        # println(paths[i])
+        # println("Entanglement: $(2*(1-λs[i]))")
+        # println("Destroyed links: $(length(destroyed_links[i]))")
+        # println()
+        # println()
+        # println()
         if λs[i] < λmin || (isapprox(λs[i], λmin, atol=1e-3) && length(destroyed_links[i]) < N)
             path = deepcopy(paths[i])
             λmin = λs[i]
@@ -643,14 +722,14 @@ end
 
 function run_mean(n)
 
-    if !isdir("out_files/$(n)")
-        mkdir("out_files/$(n)")
+    if !isdir("out_files/diag_$(n)")
+        mkdir("out_files/diag_$(n)")
     end
     
     λs = collect(range(0.5, stop=1.0, length=100))
 
     for (i, λmean) in enumerate(λs)
-        g = square_lattice(n, λ=λmean)
+        g = diagonal_square_lattice(n, λ=λmean)
 
         pairs = pairs_by_distance(g)
 
@@ -679,7 +758,7 @@ function run_mean(n)
             mean_ent[distance] = mean(ent)
             mean_N[distance] = mean(Ns)
         end
-        file = open("out_files/$n/res_$(n)_$(i).out", "w")
+        file = open("out_files/diag_$n/res_$(n)_$(i).out", "w")
         for dist in sort(collect(keys(mean_ent)))
             write(file, "$dist $(mean_ent[dist]) $(mean_N[dist]) \n")
         end
