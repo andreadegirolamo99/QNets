@@ -3,6 +3,7 @@ include("src/QSN.jl")
 using .QSN
 using Distributions
 using SparseArrays
+using Combinatorics
 using LinearAlgebra
 using ITensors
 using DataStructures
@@ -328,6 +329,7 @@ function choose_edge(g::Graph, v_start::Int64, v_end::Int64; σ = 0.0, λmean = 
     if are_neighbors(g, v_start, v_end)
         push!(solutions, [])
         push!(λs, get_weights(g, v_start, v_end))
+        push!(Ns, 0)
     end
 
     close_neighbors = Dict{Int64, Vector{Int64}}()
@@ -342,6 +344,7 @@ function choose_edge(g::Graph, v_start::Int64, v_end::Int64; σ = 0.0, λmean = 
 
             push!(solutions, [[v_start, v1, v2]])
             push!(λs, λswap(α, β))
+            push!(Ns, 2)
         end
     end
 
@@ -358,6 +361,7 @@ function choose_edge(g::Graph, v_start::Int64, v_end::Int64; σ = 0.0, λmean = 
     
             push!(solutions, [[v_start, v1, v3], [v_start, v2, v3], [v_start, v3]])
             push!(λs, λdistill(λswap(α1, β1), λswap(α2, β2)))
+            push!(Ns, 4)
         end
     
         for v1 in get_neighbors(g, v_start)
@@ -379,6 +383,19 @@ function choose_edge(g::Graph, v_start::Int64, v_end::Int64; σ = 0.0, λmean = 
     
                 push!(solutions, [[v1, v2, v4], [v1, v3, v4], [v1, v4], [v_start, v1, v4]])
                 push!(λs, λswap(α, λdistill(λswap(α1, β1), λswap(α2, β2))))
+                push!(Ns, 4)
+            end
+        end
+
+        for v1 in filter(v -> dist[v] ≤ dist[v_start], get_neighbors(g, v_start))
+            for v_common in intersect(close_neighbors[v1], get_neighbors(g, v_start))
+                α1 = get_weights(g, v_start, v1)
+                α2 = get_weights(g, v1, v_common)
+                α3 = get_weights(g, v_start, v_common)
+
+                push!(solutions, [[v_start, v1, v_common], [v_start, v_common]])
+                push!(λs, λdistill(λswap(α1, α2), α3))
+                push!(Ns, 2)
             end
         end
     end
@@ -662,7 +679,54 @@ function pairs_by_distance(g::Graph)
     return dist_pairs
 end
 
-function run_noise(n_samples, n)
+function run_pure(n)
+
+    if !isdir("out_files/diag_$(n)")
+        mkdir("out_files/diag_$(n)")
+    end
+    
+    λs = collect(range(0.5, stop=1.0, length=100))
+
+    for (i, λmean) in enumerate(λs)
+        g = diagonal_square_lattice(n, λ=λmean)
+
+        pairs = pairs_by_distance(g)
+
+        println("Mean of links: $λmean")
+        flush(stdout)
+        mean_ent = Dict()
+        mean_N = Dict()
+
+        for distance in sort(collect(keys(pairs)))
+            ent = []
+            Ns = []
+            println("Computing entanglement for nodes at distance $distance, λ = $λmean")
+            flush(stdout)
+
+            for (v1, v2) in (pairs[distance])
+                sol = find_path(g, v1, v2, samples=1000, σ=0.15, λmean=λmean, progressbar=false)
+                if !isnothing(sol)
+                    path, λ, N = sol
+                    push!(ent, 2*(1-λ))
+                    push!(Ns, N)
+                end
+            end
+            println()
+            flush(stdout)
+
+            mean_ent[distance] = mean(ent)
+            mean_N[distance] = mean(Ns)
+        end
+        file = open("out_files/diag_$n/res_$(n)_$(i).out", "w")
+        for dist in sort(collect(keys(mean_ent)))
+            write(file, "$dist $(mean_ent[dist]) $(mean_N[dist]) \n")
+        end
+        flush(file)
+        close(file)
+    end
+end
+
+function run_mixed(n_samples, n)
 
     if !isdir("out_files/$(n)")
         mkdir("out_files/$(n)")
@@ -720,52 +784,5 @@ function run_noise(n_samples, n)
     end
 end
 
-function run_mean(n)
-
-    if !isdir("out_files/diag_$(n)")
-        mkdir("out_files/diag_$(n)")
-    end
-    
-    λs = collect(range(0.5, stop=1.0, length=100))
-
-    for (i, λmean) in enumerate(λs)
-        g = diagonal_square_lattice(n, λ=λmean)
-
-        pairs = pairs_by_distance(g)
-
-        println("Mean of links: $λmean")
-        flush(stdout)
-        mean_ent = Dict()
-        mean_N = Dict()
-
-        for distance in sort(collect(keys(pairs)))
-            ent = []
-            Ns = []
-            println("Computing entanglement for nodes at distance $distance, λ = $λmean")
-            flush(stdout)
-
-            for (v1, v2) in (pairs[distance])
-                sol = find_path(g, v1, v2, samples=1000, σ=0.15, λmean=λmean, progressbar=false)
-                if !isnothing(sol)
-                    path, λ, N = sol
-                    push!(ent, 2*(1-λ))
-                    push!(Ns, N)
-                end
-            end
-            println()
-            flush(stdout)
-
-            mean_ent[distance] = mean(ent)
-            mean_N[distance] = mean(Ns)
-        end
-        file = open("out_files/diag_$n/res_$(n)_$(i).out", "w")
-        for dist in sort(collect(keys(mean_ent)))
-            write(file, "$dist $(mean_ent[dist]) $(mean_N[dist]) \n")
-        end
-        flush(file)
-        close(file)
-    end
-end
-
 # run_noise(16, 10)
-run_mean(6)
+run_pure(6)
