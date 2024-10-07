@@ -28,6 +28,7 @@ function run_mean(n, topology)
             flush(stdout)
 
             Threads.@threads for j in 1:length(pairs[distance])
+            # for j in 1:length(pairs[distance])
                 v1, v2 = pairs[distance][j]
                 sol = find_path(g, v1, v2, samples=300, σ=0.15, λmean=λmean, progressbar=false)
                 if !isnothing(sol)

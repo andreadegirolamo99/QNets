@@ -17,7 +17,7 @@ function no_comp(a, b)
     return true
 end
 
-function choose_edge(g::QGraph, v_start::Int64, v_end::Int64; real_v_start=v_start, compare=less, σ = 0.0)
+function choose_edge(g::QGraph, v_start::Int64, v_end::Int64; ignore_nodes=[], compare=less, σ = 0.0)
     dist = distance(g, v_end)
     solutions = []
     λs = []
@@ -35,7 +35,7 @@ function choose_edge(g::QGraph, v_start::Int64, v_end::Int64; real_v_start=v_sta
 
     # First, operate on distance d = 0
     # Iterate for each neighbor
-    for v_neighbor in filter(v -> compare(dist[v], dist[v_start]) && v ≠ real_v_start, get_neighbors(g, v_start))
+    for v_neighbor in filter(v -> compare(dist[v], dist[v_start]) && v ∉ ignore_nodes, get_neighbors(g, v_start))
         K_τ = get_weights(g, v_start, v_neighbor)
 
         tot_sol = []
@@ -57,7 +57,7 @@ function choose_edge(g::QGraph, v_start::Int64, v_end::Int64; real_v_start=v_sta
         # If λ is not maximally entangled, look for swap solutions
         if λ > 0.5
             # Find all common neighbors between v and v_neighbor 
-            swap_routes = filter(v -> v ≠ v_neighbor && v ≠ real_v_start && v_neighbor ∈ get_neighbors(g, v), get_neighbors(g, v_start))
+            swap_routes = filter(v -> v ≠ v_neighbor && v ∉ ignore_nodes && v_neighbor ∈ get_neighbors(g, v), get_neighbors(g, v_start))
 
             # Compute Schmidt values after swapping
             λ_swap_routes = Dict()
@@ -79,7 +79,7 @@ function choose_edge(g::QGraph, v_start::Int64, v_end::Int64; real_v_start=v_sta
             end
         end
         if v_neighbor == v_end && λ == 0.5
-            return tot_sol, v_end
+            return tot_sol, v_end, 0.5
         end
         if !isempty(tot_sol)
             push!(solutions, tot_sol)
@@ -94,8 +94,8 @@ function choose_edge(g::QGraph, v_start::Int64, v_end::Int64; real_v_start=v_sta
     # Find nodes at distance d = 1
     v_distance_1 = Dict{Int64, Vector{Int64}}()
     vs = []
-    for v_neighbor in filter(v_neigh -> v_neigh ≠ real_v_start, get_neighbors(g, v_start))
-        v_distance_1[v_neighbor] = filter(v -> v ≠ v_start && v ≠ real_v_start &&
+    for v_neighbor in filter(v_neigh -> v_neigh ∉ ignore_nodes, get_neighbors(g, v_start))
+        v_distance_1[v_neighbor] = filter(v -> v ≠ v_start && v ∉ ignore_nodes &&
                                             compare(dist[v], dist[v_start]) && 
                                             !are_neighbors(g, v_start, v), get_neighbors(g, v_neighbor))
         append!(vs, v_distance_1[v_neighbor])
@@ -131,7 +131,7 @@ function choose_edge(g::QGraph, v_start::Int64, v_end::Int64; real_v_start=v_sta
             i += 1
         end
         if v == v_end && λ == 0.5
-            return tot_sol, v_end
+            return tot_sol, v_end, 0.5
         end
         if !isempty(tot_sol)
             push!(solutions, tot_sol)
@@ -143,7 +143,7 @@ function choose_edge(g::QGraph, v_start::Int64, v_end::Int64; real_v_start=v_sta
     end
 
     if isempty(solutions)
-        return nothing, nothing
+        return nothing, nothing, nothing
     end
     λmin = minimum(λs)
 
@@ -156,7 +156,7 @@ function choose_edge(g::QGraph, v_start::Int64, v_end::Int64; real_v_start=v_sta
 
     selection = rand(valid_sols)
 
-    return solutions[selection], nodes[selection]
+    return solutions[selection], nodes[selection], λs[selection]
 end
 
 function filter_path(paths, g::QGraph, v_start::Int, v_end::Int)
@@ -226,7 +226,6 @@ function find_path(g::QGraph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, 
     start_end_dist = distance(g, v_end)[v_start]
     actual_σs = repeat(collect(range(0.0, σ, samples))[1:3:end], inner=3)[1:samples]
 
-    unfiltered_paths = fill([], samples)
     paths = fill([], samples)
     λs = fill(0.0, samples)
     destroyed_links = fill([], samples)
@@ -251,7 +250,7 @@ function find_path(g::QGraph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, 
                 prev_λ = get_weights(g, v_start, v_end)
                 new_connection = false
                 while !new_connection && iter < 2*length(vertices(g))
-                    solution = choose_edge(g_new, v_start, v_end, σ=actual_σs[i])
+                    solution, next_node, next_λ = choose_edge(g_new, v_start, v_end, σ=actual_σs[i])
                     if !isnothing(solution)
                         final_sol = []
                         for (k, op) in enumerate(solution)
@@ -288,7 +287,6 @@ function find_path(g::QGraph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, 
                 end
 
                 if iter < 2*length(vertices(g))
-                    unfiltered_paths[i] = new_path
                     # new_path, g_new = filter_path(new_path, g, v_start, v_end)
                     paths[i] = new_path
                     λs[i] = get_weights(g_new, v_start, v_end)
@@ -303,11 +301,13 @@ function find_path(g::QGraph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, 
         else
             iter = 0
             explored_nodes = []
+            explored_λs = []
+            all_paths = []
             new_v_start = v_start
             while !are_neighbors(g_new, v_start, v_end) && iter < 4*start_end_dist
-                solution, next_node = choose_edge(g_new, new_v_start, v_end, real_v_start=v_start, compare=compare, σ=actual_σs[i])
-                push!(explored_nodes, next_node)
+                solution, next_node, next_λ = choose_edge(g_new, new_v_start, v_end, ignore_nodes=[v_start], compare=compare, σ=actual_σs[i])
                 if !isnothing(solution)
+                    push!(explored_nodes, next_node)
                     if new_v_start ≠ v_start
                         push!(solution, [v_start, new_v_start, next_node])
                     end
@@ -338,6 +338,8 @@ function find_path(g::QGraph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, 
                         push!(solution, distills)
                     end
 
+                    push!(all_paths, solution)
+                    push!(explored_λs, next_λ)
                     append!(new_path, solution)
                 end
                 iter += isnothing(solution) ? 4*start_end_dist : 1
@@ -345,10 +347,60 @@ function find_path(g::QGraph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, 
             end
 
             if iter < 4*start_end_dist
-                if get_weights(g_new, v_start, v_end) > 0.5
+                # if get_weights(g_new, v_start, v_end) > 0.5
+                #     explored_nodes = [v_start, explored_nodes...]
+                #     for (idx1, idx2) in [(i, i+1) for i in 1:length(explored_nodes)-1 if explored_λs[i] > 0.5]
+                #         n1, n2 = explored_nodes[idx1], explored_nodes[idx2]
+                #         g_new_new = deepcopy(g)
+                #         for i in 1:idx1
+                #             g_new_new = apply(g_new_new, all_paths[i])
+                #         end
 
-                end
-                unfiltered_paths[i] = new_path
+                #         iter_dist = 0
+                #         new_n1 = n1
+                #         alternative_path = []
+                #         while !are_neighbors(g_new_new, n1, n2) && iter_dist < 6
+                #             new_solution, next_node_dist = choose_edge(g_new_new, new_n1, n2, ignore_nodes=explored_nodes[1:idx1], compare=(iter_dist < 3 ? no_comp : less), σ=actual_σs[i])
+                #             if !isnothing(new_solution)
+                #                 if new_n1 ≠ n1
+                #                     push!(new_solution, [n1, new_n1, next_node_dist])
+                #                 end
+                #                 final_new_sol = []
+                #                 for (k, op) in enumerate(new_solution)
+                #                     if length(op) == 3
+                #                         push!(final_new_sol, op)
+                #                         entanglement_swapping!(g_new_new, op[1], op[2], op[3])
+                #                         if length(get_weights(g_new_new, op[1], op[3])) > 1 && ((k < length(new_solution) && sort(new_solution[k+1]) != sort([op[1], op[3]])) || k == length(new_solution))
+                #                             push!(final_new_sol, [op[1], op[3]])
+                #                             entanglement_distillation!(g_new_new, op[1], op[3])
+                #                         end
+                #                     elseif length(op) == 2
+                #                         push!(final_new_sol, op)
+                #                         entanglement_distillation!(g_new_new, op[1], op[2])
+                #                     end
+                #                 end
+                                
+                #                 append!(alternative_path, final_new_sol)
+                #                 new_solution = final_new_sol
+                #                 new_n1 = next_node_dist
+                #             end
+                #             iter_dist += isnothing(new_solution) ? 6 : 1
+                #         end
+
+                #         if iter_dist < 6
+                #             final_new_path = []
+                #             for i in 1:idx1
+                #                 append!(final_new_path, all_paths[i])
+                #             end
+                #             if n2 ≠ v_end
+                #                 append!(final_new_path, all_paths[idx2][1:end-(n1 == v_start ? 0 : 1)])
+                #             end
+                #             append!(final_new_path, alternative_path)
+                #             push!(final_new_path, [n1, n2], [v_start, n1, n2])
+                #             new_path = final_new_path
+                #         end
+                #     end
+                # end
                 # new_path, g_new = filter_path(new_path, g, v_start, v_end)
                 paths[i] = new_path
                 λs[i] = get_weights(g_new, v_start, v_end)
