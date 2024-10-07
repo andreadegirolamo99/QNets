@@ -5,7 +5,19 @@ include("quantumrules.jl")
 
 using ProgressBars
 
-function choose_edge(g::QGraph, v_start::Int64, v_end::Int64; σ = 0.0)
+function less(a, b)
+    return a < b
+end
+
+function less_or_equal(a, b)
+    return a ≤ b
+end
+
+function no_comp(a, b)
+    return true
+end
+
+function choose_edge(g::QGraph, v_start::Int64, v_end::Int64; real_v_start=v_start, compare=less, σ = 0.0)
     dist = distance(g, v_end)
     solutions = []
     λs = []
@@ -23,7 +35,7 @@ function choose_edge(g::QGraph, v_start::Int64, v_end::Int64; σ = 0.0)
 
     # First, operate on distance d = 0
     # Iterate for each neighbor
-    for v_neighbor in filter(v -> dist[v] < dist[v_start], get_neighbors(g, v_start))
+    for v_neighbor in filter(v -> compare(dist[v], dist[v_start]) && v ≠ real_v_start, get_neighbors(g, v_start))
         K_τ = get_weights(g, v_start, v_neighbor)
 
         tot_sol = []
@@ -45,7 +57,7 @@ function choose_edge(g::QGraph, v_start::Int64, v_end::Int64; σ = 0.0)
         # If λ is not maximally entangled, look for swap solutions
         if λ > 0.5
             # Find all common neighbors between v and v_neighbor 
-            swap_routes = filter(v -> v ≠ v_neighbor && v_neighbor ∈ get_neighbors(g, v), get_neighbors(g, v_start))
+            swap_routes = filter(v -> v ≠ v_neighbor && v ≠ real_v_start && v_neighbor ∈ get_neighbors(g, v), get_neighbors(g, v_start))
 
             # Compute Schmidt values after swapping
             λ_swap_routes = Dict()
@@ -82,9 +94,9 @@ function choose_edge(g::QGraph, v_start::Int64, v_end::Int64; σ = 0.0)
     # Find nodes at distance d = 1
     v_distance_1 = Dict{Int64, Vector{Int64}}()
     vs = []
-    for v_neighbor in get_neighbors(g, v_start)
-        v_distance_1[v_neighbor] = filter(v -> v ≠ v_start && 
-                                            dist[v] < dist[v_start] && 
+    for v_neighbor in filter(v_neigh -> v_neigh ≠ real_v_start, get_neighbors(g, v_start))
+        v_distance_1[v_neighbor] = filter(v -> v ≠ v_start && v ≠ real_v_start &&
+                                            compare(dist[v], dist[v_start]) && 
                                             !are_neighbors(g, v_start, v), get_neighbors(g, v_neighbor))
         append!(vs, v_distance_1[v_neighbor])
     end
@@ -211,9 +223,8 @@ function filter_path(paths, g::QGraph, v_start::Int, v_end::Int)
 end
 
 function find_path(g::QGraph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, λmean=0.5, progressbar=true)
-
     start_end_dist = distance(g, v_end)[v_start]
-    actual_σs = collect(range(0.0, σ, samples))
+    actual_σs = repeat(collect(range(0.0, σ, samples))[1:3:end], inner=3)[1:samples]
 
     unfiltered_paths = fill([], samples)
     paths = fill([], samples)
@@ -224,6 +235,13 @@ function find_path(g::QGraph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, 
     # for i in (progressbar ? ProgressBar(1:samples) : 1:samples)
         g_new = deepcopy(g)
         new_path = []
+
+        compare = no_comp
+        if i % 3 == 1
+            compare = less
+        elseif i % 3 == 2
+            compare = less_or_equal
+        end
 
         if are_neighbors(g, v_start, v_end)
             if get_weights(g, v_start, v_end) == 0.5
@@ -287,7 +305,7 @@ function find_path(g::QGraph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, 
             explored_nodes = []
             new_v_start = v_start
             while !are_neighbors(g_new, v_start, v_end) && iter < 4*start_end_dist
-                solution, next_node = choose_edge(g_new, new_v_start, v_end, σ=actual_σs[i])
+                solution, next_node = choose_edge(g_new, new_v_start, v_end, real_v_start=v_start, compare=compare, σ=actual_σs[i])
                 push!(explored_nodes, next_node)
                 if !isnothing(solution)
                     if new_v_start ≠ v_start
@@ -325,8 +343,6 @@ function find_path(g::QGraph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, 
                 iter += isnothing(solution) ? 4*start_end_dist : 1
                 new_v_start = next_node
             end
-
-            # println(new_path)
 
             if iter < 4*start_end_dist
                 if get_weights(g_new, v_start, v_end) > 0.5
