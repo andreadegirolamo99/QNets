@@ -3,7 +3,7 @@ include("distribution.jl")
 
 
 function square_lattice(n::Int64; λ=0.5)
-    g = Graph(n^2)
+    g = QGraph(n^2)
 
     for j in 1:n
         for i in 1:n-1
@@ -20,7 +20,7 @@ function square_lattice(n::Int64; λ=0.5)
 end
 
 function diagonal_square_lattice(n::Int64; λ=0.5)
-    g = Graph(n^2)
+    g = QGraph(n^2)
 
     for j in 1:n-1
         for i in 1:n-1
@@ -44,7 +44,7 @@ function diagonal_square_lattice(n::Int64; λ=0.5)
 end
 
 function noisy_square_lattice(n::Int64; λmean=0.5, σ=0.01)
-    g = Graph(n^2)
+    g = QGraph(n^2)
 
     λs = generate_gaussian_values(2*n*(n-1), 0.5, 1, λmean, σ)
 
@@ -63,7 +63,7 @@ function noisy_square_lattice(n::Int64; λmean=0.5, σ=0.01)
 end
 
 function noisy_diagonal_square_lattice(n::Int64; λmean=0.5, σ=0.01)
-    g = Graph(n^2)
+    g = QGraph(n^2)
 
     λs = generate_gaussian_values(4*n^2 - 6*n + 2, 0.5, 1, λmean, σ)
 

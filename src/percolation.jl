@@ -5,7 +5,7 @@ include("quantumrules.jl")
 
 using ProgressBars
 
-function choose_edge(g::Graph, v_start::Int64, v_end::Int64; σ = 0.0)
+function choose_edge(g::QGraph, v_start::Int64, v_end::Int64; σ = 0.0)
     dist = distance(g, v_end)
     solutions = []
     λs = []
@@ -147,7 +147,7 @@ function choose_edge(g::Graph, v_start::Int64, v_end::Int64; σ = 0.0)
     return solutions[selection], nodes[selection]
 end
 
-function filter_path(paths, g::Graph, v_start::Int, v_end::Int)
+function filter_path(paths, g::QGraph, v_start::Int, v_end::Int)
     connections = [[v] for v in get_neighbors(g, v_start)]
     pending = []
     ignore = false
@@ -210,7 +210,7 @@ function filter_path(paths, g::Graph, v_start::Int, v_end::Int)
     return final_path, g_new
 end
 
-function find_path(g::Graph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, λmean=0.5, progressbar=true)
+function find_path(g::QGraph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, λmean=0.5, progressbar=true)
 
     start_end_dist = distance(g, v_end)[v_start]
     actual_σs = collect(range(0.0, σ, samples))
@@ -233,7 +233,7 @@ function find_path(g::Graph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, �
                 prev_λ = get_weights(g, v_start, v_end)
                 new_connection = false
                 while !new_connection && iter < 2*length(vertices(g))
-                    solution = choose_edge(g_new, v_start, v_end, σ=actual_σs[i], λmean=λmean)
+                    solution = choose_edge(g_new, v_start, v_end, σ=actual_σs[i])
                     if !isnothing(solution)
                         final_sol = []
                         for (k, op) in enumerate(solution)
@@ -287,7 +287,7 @@ function find_path(g::Graph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, �
             explored_nodes = []
             new_v_start = v_start
             while !are_neighbors(g_new, v_start, v_end) && iter < 4*start_end_dist
-                solution, next_node = choose_edge(g_new, new_v_start, v_end, σ=actual_σs[i], λmean=λmean)
+                solution, next_node = choose_edge(g_new, new_v_start, v_end, σ=actual_σs[i])
                 push!(explored_nodes, next_node)
                 if !isnothing(solution)
                     if new_v_start ≠ v_start

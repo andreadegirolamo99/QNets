@@ -26,7 +26,7 @@ function entanglement_distillation!(g, v1, v2)
     add_edge!(g, min(v1, v2), max(v1, v2), λ)
 end
 
-function connect_ends(g::Graph)
+function connect_ends(g::QGraph)
     n = Int64(√(n_vertices(g)))
 
     for i in 1:n-1
@@ -42,7 +42,7 @@ function connect_ends(g::Graph)
     return get_weights(g, 1, n_vertices(g))
 end
 
-function apply(g::Graph, path)
+function apply(g::QGraph, path)
     g_new = deepcopy(g)
 
     for op in path

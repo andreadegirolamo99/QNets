@@ -110,5 +110,5 @@ function run_dev(n, n_samples, σ)
     end
 end
 
-# run_mean(6)
+run_mean(6)
 # run_dev(6, 1, 0.01)

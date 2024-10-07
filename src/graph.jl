@@ -4,22 +4,22 @@ using GraphRecipes
 using Plots
 using StatsPlots
 
-mutable struct Graph
+mutable struct QGraph
     vertices::Array{Int64}
     edges::Dict{Tuple{Int64, Int64}, Union{Float64, Array{Float64, 1}}}
 
-    Graph() = new([], Dict())
+    QGraph() = new([], Dict())
 
-    Graph(n::Int64) = new([i for i in 1:n], Dict())
+    QGraph(n::Int64) = new([i for i in 1:n], Dict())
 end
 
-add_vertex!(g::Graph) = push!(g.vertices, length(g.vertices)+1)
-add_vertices!(g::Graph, n::Int64) = append!(g.vertices, collect(length(g.vertices)+1:length(g.vertices)+1+n))
+add_vertex!(g::QGraph) = push!(g.vertices, length(g.vertices)+1)
+add_vertices!(g::QGraph, n::Int64) = append!(g.vertices, collect(length(g.vertices)+1:length(g.vertices)+1+n))
 
-vertices(g::Graph) = g.vertices
-n_vertices(g::Graph) = length(g.vertices)
+vertices(g::QGraph) = g.vertices
+n_vertices(g::QGraph) = length(g.vertices)
 
-function add_edge!(g::Graph, v1::Int64, v2::Int64, w::Float64)
+function add_edge!(g::QGraph, v1::Int64, v2::Int64, w::Float64)
     v1, v2 = min(v1, v2), max(v1, v2)
     
     if haskey(g.edges, (v1, v2))
@@ -33,7 +33,7 @@ function add_edge!(g::Graph, v1::Int64, v2::Int64, w::Float64)
     end
 end
 
-function rem_edge!(g::Graph, v1::Int64, v2::Int64, w::Float64)
+function rem_edge!(g::QGraph, v1::Int64, v2::Int64, w::Float64)
     if typeof(g.edges[(v1, v2)]) <: Vector
         deleteat!(g.edges[(v1, v2)], findfirst(x -> x == w, g.edges[(v1, v2)]))
         if length(g.edges[(v1, v2)]) == 1
@@ -44,9 +44,9 @@ function rem_edge!(g::Graph, v1::Int64, v2::Int64, w::Float64)
     end
 end
 
-get_weights(g::Graph, v1::Int64, v2::Int64) = are_neighbors(g, v1, v2) ? (v1 < v2 ? g.edges[(v1, v2)] : g.edges[(v2, v1)]) : []
+get_weights(g::QGraph, v1::Int64, v2::Int64) = are_neighbors(g, v1, v2) ? (v1 < v2 ? g.edges[(v1, v2)] : g.edges[(v2, v1)]) : []
     
-function edges(g::Graph)
+function edges(g::QGraph)
     es = []
     for edge in keys(g.edges)
         if typeof(g.edges[edge]) <: Vector
@@ -58,9 +58,9 @@ function edges(g::Graph)
     return es
 end
 
-edges(g::Graph, v::Int64) = filter(edge -> v in edge, keys(g.edges))
+edges(g::QGraph, v::Int64) = filter(edge -> v in edge, keys(g.edges))
 
-function get_neighbors(g::Graph, v::Int64)
+function get_neighbors(g::QGraph, v::Int64)
     neighbors = Int[]
     for (v1, v2) in keys(g.edges)
         if v1 == v
@@ -72,9 +72,9 @@ function get_neighbors(g::Graph, v::Int64)
     return neighbors
 end
 
-are_neighbors(g::Graph, v1::Int64, v2::Int64) = v2 in get_neighbors(g, v1)
+are_neighbors(g::QGraph, v1::Int64, v2::Int64) = v2 in get_neighbors(g, v1)
 
-function adjacency_list_and_labels(g::Graph)
+function adjacency_list_and_labels(g::QGraph)
     adj_list = [Int[] for _ in 1:length(g.vertices)]
     edge_labels = Dict{Tuple{Int, Int}, String}()
     
@@ -94,7 +94,7 @@ function adjacency_list_and_labels(g::Graph)
     return adj_list, edge_labels
 end
 
-function adjMat(g::Graph)
+function adjMat(g::QGraph)
     n = length(g.vertices)
     rows = Int[]
     cols = Int[]
@@ -119,7 +119,7 @@ function adjMat(g::Graph)
 end
 
 # Plot the graph using graphplot
-function plot_graph(g::Graph)
+function plot_graph(g::QGraph)
     adj_list, edge_labels = adjacency_list_and_labels(g)
     names = string.(1:length(g.vertices))
     # Calculate grid layout dimensions
@@ -145,7 +145,7 @@ function plot_graph(g::Graph)
     )
 end
 
-function distance(g::Graph, v::Int64)
+function distance(g::QGraph, v::Int64)
     distances = Dict{Int64, Int64}()
     for vertex in g.vertices
         distances[vertex] = -1  # Use -1 to indicate unvisited
@@ -169,7 +169,7 @@ function distance(g::Graph, v::Int64)
     return distances
 end
 
-function pairs_by_distance(g::Graph)
+function pairs_by_distance(g::QGraph)
     dist_pairs = Dict{Int, Array{Tuple{Int64, Int64}, 1}}()
 
     for v in g.vertices
