@@ -347,60 +347,82 @@ function find_path(g::QGraph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, 
             end
 
             if iter < 4*start_end_dist
-                # if get_weights(g_new, v_start, v_end) > 0.5
-                #     explored_nodes = [v_start, explored_nodes...]
-                #     for (idx1, idx2) in [(i, i+1) for i in 1:length(explored_nodes)-1 if explored_λs[i] > 0.5]
-                #         n1, n2 = explored_nodes[idx1], explored_nodes[idx2]
-                #         g_new_new = deepcopy(g)
-                #         for i in 1:idx1
-                #             g_new_new = apply(g_new_new, all_paths[i])
-                #         end
+                if get_weights(g_new, v_start, v_end) > 0.5
+                    max_dist_search = 10
+                    # println("Previous path: ", new_path)
+                    explored_nodes = [v_start, explored_nodes...]
+                    for (idx1, idx2) in [(i-1, i) for i in 2:length(explored_nodes) if explored_λs[i-1] > 0.5]
+                        n1, n2 = explored_nodes[idx1], explored_nodes[idx2]
+                        # println("Looking for new path between $n1 and $n2")
+                        g_new_new = deepcopy(g)
+                        for i in 1:idx1
+                            g_new_new = apply(g_new_new, all_paths[i])
+                        end
+                        
 
-                #         iter_dist = 0
-                #         new_n1 = n1
-                #         alternative_path = []
-                #         while !are_neighbors(g_new_new, n1, n2) && iter_dist < 6
-                #             new_solution, next_node_dist = choose_edge(g_new_new, new_n1, n2, ignore_nodes=explored_nodes[1:idx1], compare=(iter_dist < 3 ? no_comp : less), σ=actual_σs[i])
-                #             if !isnothing(new_solution)
-                #                 if new_n1 ≠ n1
-                #                     push!(new_solution, [n1, new_n1, next_node_dist])
-                #                 end
-                #                 final_new_sol = []
-                #                 for (k, op) in enumerate(new_solution)
-                #                     if length(op) == 3
-                #                         push!(final_new_sol, op)
-                #                         entanglement_swapping!(g_new_new, op[1], op[2], op[3])
-                #                         if length(get_weights(g_new_new, op[1], op[3])) > 1 && ((k < length(new_solution) && sort(new_solution[k+1]) != sort([op[1], op[3]])) || k == length(new_solution))
-                #                             push!(final_new_sol, [op[1], op[3]])
-                #                             entanglement_distillation!(g_new_new, op[1], op[3])
-                #                         end
-                #                     elseif length(op) == 2
-                #                         push!(final_new_sol, op)
-                #                         entanglement_distillation!(g_new_new, op[1], op[2])
-                #                     end
-                #                 end
-                                
-                #                 append!(alternative_path, final_new_sol)
-                #                 new_solution = final_new_sol
-                #                 new_n1 = next_node_dist
-                #             end
-                #             iter_dist += isnothing(new_solution) ? 6 : 1
-                #         end
+                        iter_dist = 0
+                        new_n1 = n1
+                        alternative_path = []
+                        while !are_neighbors(g_new_new, n1, n2) && iter_dist < max_dist_search
+                            new_solution, next_node_dist = choose_edge(g_new_new, new_n1, n2, ignore_nodes=unique(vcat(new_path...)), compare=(iter_dist < div(max_dist_search, 2) ? no_comp : less), σ=actual_σs[i])
+                            if !isnothing(new_solution)
+                                if new_n1 ≠ n1
+                                    push!(new_solution, [n1, new_n1, next_node_dist])
+                                end
+                                final_new_sol = []
+                                for (k, op) in enumerate(new_solution)
+                                    if length(op) == 3
+                                        push!(final_new_sol, op)
+                                        entanglement_swapping!(g_new_new, op[1], op[2], op[3])
+                                        if length(get_weights(g_new_new, op[1], op[3])) > 1 && ((k < length(new_solution) && sort(new_solution[k+1]) != sort([op[1], op[3]])) || k == length(new_solution))
+                                            push!(final_new_sol, [op[1], op[3]])
+                                            entanglement_distillation!(g_new_new, op[1], op[3])
+                                        end
+                                    elseif length(op) == 2
+                                        push!(final_new_sol, op)
+                                        entanglement_distillation!(g_new_new, op[1], op[2])
+                                    end
+                                end
+                                # println("Found solution: ", final_new_sol)
+                                append!(alternative_path, final_new_sol)
+                                new_solution = final_new_sol
+                                new_n1 = next_node_dist
+                            end
+                            iter_dist += isnothing(new_solution) ? max_dist_search : 1
+                        end
 
-                #         if iter_dist < 6
-                #             final_new_path = []
-                #             for i in 1:idx1
-                #                 append!(final_new_path, all_paths[i])
-                #             end
-                #             if n2 ≠ v_end
-                #                 append!(final_new_path, all_paths[idx2][1:end-(n1 == v_start ? 0 : 1)])
-                #             end
-                #             append!(final_new_path, alternative_path)
-                #             push!(final_new_path, [n1, n2], [v_start, n1, n2])
-                #             new_path = final_new_path
-                #         end
-                #     end
-                # end
+                        if iter_dist < max_dist_search && !isempty(alternative_path)
+                            # println("Found path: ", alternative_path)
+                            final_new_path = []
+                            for i in 2:idx1
+                                append!(final_new_path, all_paths[i-1])
+                            end
+                            idx_add_later = n1 == v_start ? length(all_paths[idx1])+1 : findfirst(op -> op == [v_start, n1, n2], all_paths[idx1])
+                            append!(final_new_path, all_paths[idx1][1:idx_add_later-1])
+                            append!(final_new_path, alternative_path)
+
+                            push!(final_new_path, [n1, n2])
+                            append!(final_new_path, all_paths[idx1][idx_add_later:end])
+                            for i in idx2:length(all_paths)
+                                append!(final_new_path, all_paths[i])
+                            end
+                            new_path = final_new_path
+                            # println("Final path: $(new_path)")
+                        end
+                    end
+
+                    # println()
+                    # println("Final path: $(new_path)")
+                    # println()
+                    # println()
+                    # println()
+                    # println()
+                    # println()
+                    # println()
+                    # println()
+                end
+                
+                g_new = apply(g, new_path)
                 # new_path, g_new = filter_path(new_path, g, v_start, v_end)
                 paths[i] = new_path
                 λs[i] = get_weights(g_new, v_start, v_end)
