@@ -243,60 +243,94 @@ function find_path(g::QGraph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, 
         end
 
         if are_neighbors(g, v_start, v_end)
-            if get_weights(g, v_start, v_end) == 0.5
-                λs[i] = 0.5
-            else
-                iter = 0
-                prev_λ = get_weights(g, v_start, v_end)
-                new_connection = false
-                while !new_connection && iter < 2*length(vertices(g))
-                    solution, next_node, next_λ = choose_edge(g_new, v_start, v_end, σ=actual_σs[i])
-                    if !isnothing(solution)
-                        final_sol = []
-                        for (k, op) in enumerate(solution)
-                            if length(op) == 3
-                                push!(final_sol, op)
-                                entanglement_swapping!(g_new, op[1], op[2], op[3])
-                                if length(get_weights(g_new, op[1], op[3])) > 1 && ((k < length(solution) && sort(solution[k+1]) != sort([op[1], op[3]])) || k == length(solution))
-                                    push!(final_sol, [op[1], op[3]])
-                                    entanglement_distillation!(g_new, op[1], op[3])
+            if get_weights(g, v_start, v_end) > 0.5
+                new_path, node, old_λ = choose_edge(g_new, v_start, v_end, σ=actual_σs[i])
+                if node == v_end
+                    paths[i] = new_path
+                    λs[i] = old_λ
+                else
+                    old_λ = get_weights(g, v_start, v_end)
+                end
+                if old_λ > 0.5
+                    max_dist_search = 10
+                    sample_dist = 9
+                    σs_dist = repeat(collect(range(0.0, σ, sample_dist))[1:3:end], inner=3)[1:sample_dist]
+
+                    n1, n2 = v_start, v_end
+                    for s in 1:sample_dist
+                        # println("Looking for new path between $n1 and $n2")
+                        g_new_new = deepcopy(g)
+                        rem_edge!(g_new_new, v_start, v_end, get_weights(g, v_start, v_end))
+
+                        compare_dist = no_comp
+                        if s % 3 == 1
+                            compare_dist = less
+                        elseif s % 3 == 2
+                            compare_dist = less_or_equal
+                        end
+
+                        iter_dist = 0
+                        new_n1 = n1
+                        alternative_path = []
+                        while !are_neighbors(g_new_new, n1, n2) && iter_dist < max_dist_search
+                            if iter_dist > div(max_dist_search, 2) && compare_dist == no_comp
+                                compare_dist = less
+                            end
+                            new_solution, next_node_dist = choose_edge(g_new_new, new_n1, n2, ignore_nodes=unique(vcat(paths[i]...)), compare=compare_dist, σ=σs_dist[s])
+                            if !isnothing(new_solution)
+                                if new_n1 ≠ n1
+                                    push!(new_solution, [n1, new_n1, next_node_dist])
                                 end
-                            elseif length(op) == 2
-                                push!(final_sol, op)
-                                entanglement_distillation!(g_new, op[1], op[2])
+                                final_new_sol = []
+                                for (k, op) in enumerate(new_solution)
+                                    if length(op) == 3
+                                        push!(final_new_sol, op)
+                                        entanglement_swapping!(g_new_new, op[1], op[2], op[3])
+                                        if length(get_weights(g_new_new, op[1], op[3])) > 1 && ((k < length(new_solution) && sort(new_solution[k+1]) != sort([op[1], op[3]])) || k == length(new_solution))
+                                            push!(final_new_sol, [op[1], op[3]])
+                                            entanglement_distillation!(g_new_new, op[1], op[3])
+                                        end
+                                    elseif length(op) == 2
+                                        push!(final_new_sol, op)
+                                        entanglement_distillation!(g_new_new, op[1], op[2])
+                                    end
+                                end
+                                # println("Found solution: ", final_new_sol)
+                                append!(alternative_path, final_new_sol)
+                                new_solution = final_new_sol
+                                new_n1 = next_node_dist
+                            end
+                            iter_dist += isnothing(new_solution) ? max_dist_search : 1
+                        end
+
+                        if iter_dist < max_dist_search && !isempty(alternative_path) && 
+                                    λdistill(get_weights(g_new_new, n1, n2), old_λ) < old_λ
+                            append!(paths[i], alternative_path)
+                            push!(paths[i], [v_start, v_end])
+                            old_λ = λdistill(get_weights(g_new_new, n1, n2), old_λ)
+                            if old_λ == 0.5
+                                break
                             end
                         end
-
-                        solution = final_sol
-
-                        distills = [[v1, v2] for v1 in unique(collect(Iterators.flatten(solution))) 
-                                            for v2 in unique(collect(Iterators.flatten(solution)))
-                                            if v1 < v2 && are_neighbors(g_new, v1, v2) && length(get_weights(g_new, v1, v2)) == 2]
-                                                
-                        if !isempty(distills)
-                            distills = first(distills)
-                            entanglement_distillation!(g_new, distills[1], distills[2])
-                            push!(solution, distills)
-                        end
-                        append!(new_path, solution)
                     end
-                    new_connection = isnothing(solution) || (are_neighbors(g_new, v_start, v_end) && 
-                                                            get_weights(g_new, v_start, v_end) < prev_λ &&
-                                                            !isapprox(get_weights(g_new, v_start, v_end), prev_λ))
-                    iter += isnothing(solution) ? 2*length(vertices(g)) : 1
-                end
-
-                if iter < 2*length(vertices(g))
-                    # new_path, g_new = filter_path(new_path, g, v_start, v_end)
-                    paths[i] = new_path
-                    λs[i] = get_weights(g_new, v_start, v_end)
-                    destroyed_links[i] = [[v1, v2] for v1 in unique(collect(Iterators.flatten(new_path))) 
-                                                for v2 in unique(collect(Iterators.flatten(new_path)))
-                                                if v1 < v2 && are_neighbors(g, v1, v2) && (!are_neighbors(g_new, v1, v2) || 
-                                                    ((v1, v2) == tuple(sort([v_start, v_end])...) && !isempty(paths[i][1])))]
+                    if isempty(paths[i])
+                        λs[i] = get_weights(g, v_start, v_end)
+                    else
+                        g_new = apply(g, paths[i])
+                        λs[i] = get_weights(g_new, v_start, v_end)
+                        destroyed_links[i] = [[v1, v2] for v1 in unique(collect(Iterators.flatten(paths[i]))) 
+                                                    for v2 in unique(collect(Iterators.flatten(paths[i])))
+                                                    if v1 < v2 && are_neighbors(g, v1, v2) && (!are_neighbors(g_new, v1, v2) || 
+                                                        ((v1, v2) == tuple(sort([v_start, v_end])...) && !isempty(paths[i][1])))]
+                    end
                 else
-                    λs[i] = prev_λ
+                    destroyed_links[i] = [[v1, v2] for v1 in unique(collect(Iterators.flatten(paths[i]))) 
+                                                    for v2 in unique(collect(Iterators.flatten(paths[i])))
+                                                    if v1 < v2 && are_neighbors(g, v1, v2) && (!are_neighbors(g_new, v1, v2) || 
+                                                        ((v1, v2) == tuple(sort([v_start, v_end])...) && !isempty(paths[i][1])))]
                 end
+            else
+                λs[i] = 0.5
             end
         else
             iter = 0
