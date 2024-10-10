@@ -399,7 +399,7 @@ function find_path(g::QGraph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, 
                         for s in 1:sample_dist
                             # println("Looking for new path between $n1 and $n2")
                             g_new_new = deepcopy(g)
-                            for i in 1:idx1
+                            for i in 1:idx1-1
                                 g_new_new = apply(g_new_new, all_paths[i])
                             end
                             
@@ -408,6 +408,9 @@ function find_path(g::QGraph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, 
                             iter_dist = 0
                             new_n1 = n1
                             alternative_path = []
+                            if are_neighbors(g_new_new, n1, n2)
+                                rem_edge!(g_new_new, n1, n2, get_weights(g_new_new, n1, n2))
+                            end
                             while !are_neighbors(g_new_new, n1, n2) && iter_dist < max_dist_search
                                 if iter_dist > div(max_dist_search, 2) && compare_dist == no_comp
                                     compare_dist = less

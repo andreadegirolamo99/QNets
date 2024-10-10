@@ -34,6 +34,7 @@ function add_edge!(g::QGraph, v1::Int64, v2::Int64, w::Float64)
 end
 
 function rem_edge!(g::QGraph, v1::Int64, v2::Int64, w::Float64)
+    v1, v2 = min(v1, v2), max(v1, v2)
     if typeof(g.edges[(v1, v2)]) <: Vector
         deleteat!(g.edges[(v1, v2)], findfirst(x -> x == w, g.edges[(v1, v2)]))
         if length(g.edges[(v1, v2)]) == 1
