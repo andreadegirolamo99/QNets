@@ -30,7 +30,7 @@ function run_mean(n, topology)
             Threads.@threads for j in 1:length(pairs[distance])
             # for j in 1:length(pairs[distance])
                 v1, v2 = pairs[distance][j]
-                sol = find_path(g, v1, v2, samples=300, σ=0.15, λmean=λmean, progressbar=false)
+                sol = find_path(g, v1, v2, samples=300, σ=0.15, progressbar=false)
                 if !isnothing(sol)
                     path, λ, N = sol
                     ent[j] = 2*(1 - λ)
@@ -81,7 +81,7 @@ function run_dev(n, σ, topology)
 
             Threads.@threads for j in 1:length(pairs[distance])
                 v1, v2 = pairs[distance][j]
-                sol = find_path(g, v1, v2, samples=300, σ=0.15, λmean=λmean, progressbar=false)
+                sol = find_path(g, v1, v2, samples=300, σ=0.15, progressbar=false)
                 if !isnothing(sol)
                     path, λ, N = sol
                     ent[j] = 2*(1 - λ)

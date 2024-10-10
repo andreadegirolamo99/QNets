@@ -1,7 +1,3 @@
-include("graph.jl")
-include("distribution.jl")
-
-
 function square_lattice(n::Int64; λ=0.5)
     g = QGraph(n^2)
 
@@ -50,12 +46,12 @@ function noisy_square_lattice(n::Int64; λmean=0.5, σ=0.01)
 
     for j in 1:n
         for i in 1:n-1
-            add_edge!(g, i+n*(j-1), i+n*(j-1)+1, splice!(λs, 1:length(λs)))
+            add_edge!(g, i+n*(j-1), i+n*(j-1)+1, splice!(λs, rand(1:length(λs))))
         end
     end
     for j in 1:n-1
         for i in 1:n
-            add_edge!(g, i+n*(j-1), i+n*j, splice!(λs, 1:length(λs)))
+            add_edge!(g, i+n*(j-1), i+n*j, splice!(λs, rand(1:length(λs))))
         end
     end
 
@@ -69,20 +65,20 @@ function noisy_diagonal_square_lattice(n::Int64; λmean=0.5, σ=0.01)
 
     for j in 1:n-1
         for i in 1:n-1
-            add_edge!(g, i+n*(j-1), i+n*(j-1)+1, splice!(λs, 1:length(λs)))
-            add_edge!(g, i+n*(j-1), i+n*j+1, splice!(λs, 1:length(λs)))
+            add_edge!(g, i+n*(j-1), i+n*(j-1)+1, splice!(λs, rand(1:length(λs))))
+            add_edge!(g, i+n*(j-1), i+n*j+1, splice!(λs, rand(1:length(λs))))
         end
     end
     for i in 1:n-1
-        add_edge!(g, i+n*(n-1), i+n*(n-1)+1, splice!(λs, 1:length(λs)))
+        add_edge!(g, i+n*(n-1), i+n*(n-1)+1, splice!(λs, rand(1:length(λs))))
     end
 
     for j in 1:n-1
         for i in 1:n-1
-            add_edge!(g, i+n*(j-1), i+n*j, splice!(λs, 1:length(λs)))
-            add_edge!(g, i+n*(j-1)+1, i+n*j, splice!(λs, 1:length(λs)))
+            add_edge!(g, i+n*(j-1), i+n*j, splice!(λs, rand(1:length(λs))))
+            add_edge!(g, i+n*(j-1)+1, i+n*j, splice!(λs, rand(1:length(λs))))
         end
-        add_edge!(g, n*j, n*(j+1), splice!(λs, 1:length(λs)))
+        add_edge!(g, n*j, n*(j+1), splice!(λs, rand(1:length(λs))))
     end
 
     return g

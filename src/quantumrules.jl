@@ -1,6 +1,3 @@
-include("graph.jl")
-
-
 λswap(α, β) = 0.5*(1 + √(1 - 16*α*(1-α)*β*(1-β)))
 
 function entanglement_swapping!(g, v1, v2, v3)

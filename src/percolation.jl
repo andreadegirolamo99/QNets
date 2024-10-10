@@ -441,13 +441,6 @@ function find_path(g::QGraph, v_start::Int64, v_end::Int64; samples=64, σ=0.0, 
     N = Inf
 
     for i in findall(path -> path ≠ ["NOT FOUND"], paths)
-        # println("Path to connect $(v_start) and $(v_end) before and after filtering:")
-        # println(paths[i])
-        # println("Entanglement: $(2*(1-λs[i]))")
-        # println("Destroyed links: $(length(destroyed_links[i]))")
-        # println()
-        # println()
-        # println()
         if λs[i] < λmin || (isapprox(λs[i], λmin, atol=1e-3) && length(paths[i]) < N)
             path = deepcopy(paths[i])
             λmin = λs[i]
