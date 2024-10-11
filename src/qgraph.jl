@@ -141,7 +141,6 @@ function plot_graph(g::QGraph)
               self_edge_size=0.4,
               nodesize = 0.2,
               arrow=false,
-              edgelabel=Dict(((u, v), edge_labels[(u, v)]) for (u, v) in keys(edge_labels)),
               coords=(coords_x, coords_y)
     )
 end
