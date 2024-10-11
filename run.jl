@@ -53,14 +53,14 @@ function run_mean(n, topology)
 end
 
 function run_dev(n, σ, topology)
-    if !isdir("out_files/$(topology)_$n")
-        mkdir("out_files/$(topology)_$n")
+    if !isdir("out_files/$(replace(topology, r"noisy_" => ""))_$n")
+        mkdir("out_files/$(replace(topology, r"noisy_" => ""))_$n")
     end
-    if !isdir("out_files/$(topology)_$n/std_dev=$(σ)")
-        mkdir("out_files/$(topology)_$n/std_dev=$(σ)")
+    if !isdir("out_files/$(replace(topology, r"noisy_" => ""))_$n/std_dev=$(σ)")
+        mkdir("out_files/$(replace(topology, r"noisy_" => ""))_$n/std_dev=$(σ)")
     end
-    s_num = isempty(readdir("out_files/$(topology)_$n/std_dev=$(σ)")) ? 1 : (maximum([parse(Int64, sample) for sample in readdir("out_files/$(topology)_$n/std_dev=$(σ)")]) + 1)
-    mkdir("out_files/$(topology)_$n/std_dev=$(σ)/$(s_num)")
+    s_num = isempty(readdir("out_files/$(replace(topology, r"noisy_" => ""))_$n/std_dev=$(σ)")) ? 1 : (maximum([parse(Int64, sample) for sample in readdir("out_files/$(topology)_$n/std_dev=$(σ)")]) + 1)
+    mkdir("out_files/$(replace(topology, r"noisy_" => ""))_$n/std_dev=$(σ)/$(s_num)")
 
     λs = collect(range(0.5, stop=1.0, length=101))
     for (i, λmean) in enumerate(λs)
@@ -68,8 +68,10 @@ function run_dev(n, σ, topology)
 
         pairs = pairs_by_distance(g)
 
-        λmean = mean(get_weights(g, pair...) for pair in pairs[1])
+        @assert isapprox(mean(get_weights(g, pair...) for pair in pairs[1]), λmean)
 
+        println("Mean of links: $λmean")
+        flush(stdout)
         mean_ent = Dict()
         mean_N = Dict()
         
@@ -95,7 +97,7 @@ function run_dev(n, σ, topology)
             mean_N[distance] = mean(Ns)
         end
 
-        file = open("out_files/$(topology)_$n/std_dev=$(σ)/$(s_num)/$(i)_$(λmean).out", "w")
+        file = open("out_files/$(replace(topology, r"noisy_" => ""))_$n/std_dev=$(σ)/$(s_num)/$(i)_$(λmean).out", "w")
         for dist in sort(collect(keys(mean_ent)))
             write(file, "$(dist-1) $(mean_ent[dist]) $(mean_N[dist]) \n")
         end
