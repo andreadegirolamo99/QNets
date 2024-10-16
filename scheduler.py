@@ -34,6 +34,6 @@ for topology in topologies:
             if sigma > 0:
                 topology_ = "noisy_" + topology
                 for sample in samples:
-                    os.system('./qnets.sh ' + topology_ + ' ' + str(N) + ' ' + str(i+1) + ' ' + str(lambda_) + ' ' + str(sigma) + ' ' + str(sample))
+                    os.system('sbatch ./qnets.sh ' + topology_ + ' ' + str(N) + ' ' + str(i+1) + ' ' + str(lambda_) + ' ' + str(sigma) + ' ' + str(sample))
             else:
-                os.system('./qnets.sh ' + topology + ' ' + str(N) + ' ' + str(i+1) + ' ' + str(lambda_) + ' ' + str(sigma) + ' ' + str(0))
+                os.system('sbatch ./qnets.sh ' + topology + ' ' + str(N) + ' ' + str(i+1) + ' ' + str(lambda_) + ' ' + str(sigma) + ' ' + str(0))
