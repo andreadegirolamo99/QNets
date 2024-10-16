@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-N = 10
+N = 6
 topologies = ["square_lattice"]#["square_lattice", "diagonal_square_lattice", "honeycomb", "fully_connected_honeycomb"]
 sigmas = [0]#[0, 0.01, 0.07]
 lambdas = np.arange(0.5, 1.005, 1/200)
