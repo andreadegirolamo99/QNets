@@ -7,7 +7,7 @@
 #SBATCH --time=24:00:00              # time limits: 24 hours
 #SBATCH --account=INF24_npqcd_0      # account name
 #SBATCH --partition=g100_usr_prod   # partition name
-#SBATCH --qos=noQOS                 # quality of service
+#SBATCH --qos=normal                 # quality of service
 #SBATCH --mail-type=BEGIN
 #SBATCH --mail-user=andrea.degirolamo@poliba.it
 
