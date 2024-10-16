@@ -34,7 +34,7 @@ function run_mean(n, i, λmean, topology)
         mean_N[distance] = mean(Ns)
     end
 
-    file = open("out_files/$(topology)_$n/mean_/$(i)_$(λmean).out", "w")
+    file = open("out_files/$(topology)_$n/mean/$(i)_$(λmean).out", "w")
     for dist in sort(collect(keys(mean_ent)))
         write(file, "$(dist-1) $(mean_ent[dist]) $(mean_N[dist]) \n")
     end
@@ -96,8 +96,8 @@ end
 topology = ARGS[1]
 N = parse(Int64, ARGS[2])
 i = parse(Int64, ARGS[3])
-λmean = parse(Float64, ARGS[4])
-std_dev = parse(Float64, ARGS[5])
+λmean = round(parse(Float64, ARGS[4]), digits=3)
+std_dev = round(parse(Float64, ARGS[5]), digits=2)
 sample = parse(Int64, ARGS[6])
 
 run(topology, N, i, λmean, std_dev, sample)
