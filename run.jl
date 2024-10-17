@@ -12,7 +12,7 @@ function run_mean(n, i, λmean, topology)
     mean_ent = fill(0.0, length(sort(collect(keys(pairs)))[2:end]))
     mean_N = fill(0.0, length(sort(collect(keys(pairs)))[2:end]))
 
-    Threads.@threads for (k, distance) in enumerate(sort(collect(keys(pairs)))[2:end])
+    Threads.@threads for distance in sort(collect(keys(pairs)))[2:end]
         ent = fill(0.0, length(pairs[distance]))
         Ns = fill(0.0, length(pairs[distance]))
         # println("Computing entanglement for nodes at distance $(distance-1), λ = $λmean")
@@ -32,8 +32,8 @@ function run_mean(n, i, λmean, topology)
         println()
         flush(stdout)
 
-        mean_ent[k] = mean(ent)
-        mean_N[k] = mean(Ns)
+        mean_ent[distance-1] = mean(ent)
+        mean_N[distance-1] = mean(Ns)
     end
 
     file = open("out_files/$(topology)_$n/mean/$(i)_$(λmean).out", "w")
@@ -58,7 +58,7 @@ function run_dev(n, i, λmean, σ, topology, sample)
     mean_ent = fill(0.0, length(sort(collect(keys(pairs)))[2:end]))
     mean_N = fill(0.0, length(sort(collect(keys(pairs)))[2:end]))
     
-    Threads.@threads for (k, distance) in enumerate(sort(collect(keys(pairs)))[2:end])
+    Threads.@threads for distance in sort(collect(keys(pairs)))[2:end]
         ent = fill(0.0, length(pairs[distance]))
         Ns = fill(0.0, length(pairs[distance]))
         # println("Computing entanglement for nodes at distance $(distance-1), λ = $λmean")
@@ -77,8 +77,8 @@ function run_dev(n, i, λmean, σ, topology, sample)
         println()
         flush(stdout)
 
-        mean_ent[k] = mean(ent)
-        mean_N[k] = mean(Ns)
+        mean_ent[distance-1] = mean(ent)
+        mean_N[distance-1] = mean(Ns)
     end
 
     file = open("out_files/$(replace(topology, r"noisy_" => ""))_$n/std_dev=$(σ)/$(sample)/$(i)_$(λmean).out", "w")
