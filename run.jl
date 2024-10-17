@@ -58,8 +58,8 @@ function run_dev(n, i, λmean, σ, topology, sample)
     Threads.@threads for distance in sort(collect(keys(pairs)))[2:end]
         ent = fill(0.0, length(pairs[distance]))
         Ns = fill(0.0, length(pairs[distance]))
-        println("Computing entanglement for nodes at distance $(distance-1), λ = $λmean")
-        flush(stdout)
+        # println("Computing entanglement for nodes at distance $(distance-1), λ = $λmean")
+        # flush(stdout)
 
         Threads.@threads for j in 1:length(pairs[distance])
             v1, v2 = pairs[distance][j]
