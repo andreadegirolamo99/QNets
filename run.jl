@@ -7,11 +7,12 @@ function run_mean(n, i, λmean, topology)
     pairs = pairs_by_distance(g)
 
     println("Mean of links: $λmean")
+    println()
     flush(stdout)
-    mean_ent = Dict()
-    mean_N = Dict()
+    mean_ent = fill(0.0, length(sort(collect(keys(pairs)))[2:end]))
+    mean_N = fill(0.0, length(sort(collect(keys(pairs)))[2:end]))
 
-    Threads.@threads for distance in sort(collect(keys(pairs)))[2:end]
+    Threads.@threads for (k, distance) in enumerate(sort(collect(keys(pairs)))[2:end])
         ent = fill(0.0, length(pairs[distance]))
         Ns = fill(0.0, length(pairs[distance]))
         # println("Computing entanglement for nodes at distance $(distance-1), λ = $λmean")
@@ -27,16 +28,17 @@ function run_mean(n, i, λmean, topology)
                 Ns[j] = N
             end
         end
+        println("Finished distance $(distance - 1)")
         println()
         flush(stdout)
 
-        mean_ent[distance] = mean(ent)
-        mean_N[distance] = mean(Ns)
+        mean_ent[k] = mean(ent)
+        mean_N[k] = mean(Ns)
     end
 
     file = open("out_files/$(topology)_$n/mean/$(i)_$(λmean).out", "w")
-    for dist in sort(collect(keys(mean_ent)))
-        write(file, "$(dist-1) $(mean_ent[dist]) $(mean_N[dist]) \n")
+    for dist in eachindex(mean_ent)
+        write(file, "$(dist) $(mean_ent[dist]) $(mean_N[dist]) \n")
     end
 
     flush(file)
@@ -51,11 +53,12 @@ function run_dev(n, i, λmean, σ, topology, sample)
     @assert isapprox(mean(get_weights(g, pair...) for pair in pairs[1]), λmean)
 
     println("Mean of links: $λmean")
+    println()
     flush(stdout)
-    mean_ent = Dict()
-    mean_N = Dict()
+    mean_ent = fill(0.0, length(sort(collect(keys(pairs)))[2:end]))
+    mean_N = fill(0.0, length(sort(collect(keys(pairs)))[2:end]))
     
-    Threads.@threads for distance in sort(collect(keys(pairs)))[2:end]
+    Threads.@threads for (k, distance) in enumerate(sort(collect(keys(pairs)))[2:end])
         ent = fill(0.0, length(pairs[distance]))
         Ns = fill(0.0, length(pairs[distance]))
         # println("Computing entanglement for nodes at distance $(distance-1), λ = $λmean")
@@ -70,16 +73,17 @@ function run_dev(n, i, λmean, σ, topology, sample)
                 Ns[j] = N
             end
         end
+        println("Finished distance $(distance - 1)")
         println()
         flush(stdout)
 
-        mean_ent[distance] = mean(ent)
-        mean_N[distance] = mean(Ns)
+        mean_ent[k] = mean(ent)
+        mean_N[k] = mean(Ns)
     end
 
     file = open("out_files/$(replace(topology, r"noisy_" => ""))_$n/std_dev=$(σ)/$(sample)/$(i)_$(λmean).out", "w")
-    for dist in sort(collect(keys(mean_ent)))
-        write(file, "$(dist-1) $(mean_ent[dist]) $(mean_N[dist]) \n")
+    for dist in eachindex(mean_ent)
+        write(file, "$(dist) $(mean_ent[dist]) $(mean_N[dist]) \n")
     end
     flush(file)
     close(file)
