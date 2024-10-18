@@ -10,32 +10,39 @@ function percolate(g)
     mean_ent = fill(0.0, length(sorted_distances))
     mean_N = fill(0.0, length(sorted_distances))
 
-    # Parallelize across all distances
-    Threads.@threads for idx in 1:length(sorted_distances)
-        distance = sorted_distances[idx]
-        ent = Vector{Float64}(undef, length(pairs[distance]))
-        Ns = Vector{Float64}(undef, length(pairs[distance]))
+    # Parallelize across all distances using spawn
+    results = Vector{Task}(undef, length(sorted_distances))
 
-        # Parallelize over pairs for each distance
-        Threads.@threads for j in 1:length(pairs[distance])
-            v1, v2 = pairs[distance][j]
-            sol = find_path(g, v1, v2, samples=600, σ=0.5, progressbar=false)
-            if !isnothing(sol)
-                path, λ, N = sol
-                ent[j] = 2*(1 - λ)
-                Ns[j] = N
-            else
-                ent[j] = 0.0  # Handle case where no solution is found
-                Ns[j] = 0.0
+    for idx in eachindex(sorted_distances)
+        results[idx] = Threads.@spawn begin
+            distance = sorted_distances[idx]
+            ent = Vector{Float64}(undef, length(pairs[distance]))
+            Ns = Vector{Float64}(undef, length(pairs[distance]))
+
+            # Process pairs in parallel
+            Threads.@threads for j in 1:length(pairs[distance])
+                v1, v2 = pairs[distance][j]
+                sol = find_path(g, v1, v2, samples=600, σ=0.5, progressbar=false)
+                if !isnothing(sol)
+                    path, λ, N = sol
+                    ent[j] = 2 * (1 - λ)
+                    Ns[j] = N
+                else
+                    ent[j] = 0.0  # Handle case where no solution is found
+                    Ns[j] = 0.0
+                end
             end
+
+            println("Finished distance $(distance - 1)")
+            flush(stdout)
+
+            return mean(ent), mean(Ns)
         end
+    end
 
-        println("Finished distance $(distance - 1)")
-        println()
-        flush(stdout)
-
-        mean_ent[idx] = mean(ent)
-        mean_N[idx] = mean(Ns)
+    # Wait for all tasks to complete and collect the results
+    for idx in 1:length(sorted_distances)
+        mean_ent[idx], mean_N[idx] = fetch(results[idx])
     end
 
     return sorted_distances, mean_ent, mean_N
