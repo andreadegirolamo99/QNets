@@ -13,23 +13,35 @@ function percolate(g)
     # Parallelize across all distances using spawn
     results = Vector{Task}(undef, length(sorted_distances))
 
+    # Assuming THREAD_CHUNK_SIZE is predefined or set based on system resources
+    THREAD_CHUNK_SIZE = 10
+
     for idx in eachindex(sorted_distances)
         results[idx] = Threads.@spawn begin
             distance = sorted_distances[idx]
-            ent = Vector{Float64}(undef, length(pairs[distance]))
-            Ns = Vector{Float64}(undef, length(pairs[distance]))
+            num_pairs = length(pairs[distance])
+            ent = Vector{Float64}(undef, num_pairs)
+            Ns = Vector{Float64}(undef, num_pairs)
 
-            # Process pairs in parallel
-            Threads.@threads for j in 1:length(pairs[distance])
-                v1, v2 = pairs[distance][j]
-                sol = find_path(g, v1, v2, samples=600, σ=0.5, progressbar=false)
-                if !isnothing(sol)
-                    path, λ, N = sol
-                    ent[j] = 2 * (1 - λ)
-                    Ns[j] = N
-                else
-                    ent[j] = 0.0  # Handle case where no solution is found
-                    Ns[j] = 0.0
+            # Process pairs in chunks
+            num_chunks = ceil(Int, num_pairs / THREAD_CHUNK_SIZE)
+
+            Threads.@threads for chunk_idx in 1:num_chunks
+                start_idx = (chunk_idx - 1) * THREAD_CHUNK_SIZE + 1
+                end_idx = min(chunk_idx * THREAD_CHUNK_SIZE, num_pairs)
+
+                for j in start_idx:end_idx
+                    v1, v2 = pairs[distance][j]
+                    sol = find_path(g, v1, v2, samples=600, σ=0.5, progressbar=false)
+                    
+                    if !isnothing(sol)
+                        path, λ, N = sol
+                        ent[j] = 2 * (1 - λ)
+                        Ns[j] = N
+                    else
+                        ent[j] = 0.0  # Handle case where no solution is found
+                        Ns[j] = 0.0
+                    end
                 end
             end
 
