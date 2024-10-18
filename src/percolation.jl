@@ -4,7 +4,6 @@ include("topology.jl")
 include("quantumrules.jl")
 
 using ProgressBars
-using FLoops
 
 function less(a, b)
     return a < b
