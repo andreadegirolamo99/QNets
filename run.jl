@@ -1,69 +1,22 @@
 include("src/percolation.jl")
 
 
-function run_mean(n, i, λmean, topology)
-    g = eval(Symbol(topology))(n, λ=λmean)
-
+function percolate(g)
     pairs = pairs_by_distance(g)
 
-    println("Mean of links: $λmean")
-    println()
-    flush(stdout)
-    mean_ent = fill(0.0, length(sort(collect(keys(pairs)))[2:end]))
-    mean_N = fill(0.0, length(sort(collect(keys(pairs)))[2:end]))
-
-    Threads.@threads for distance in sort(collect(keys(pairs)))[2:end]
-        ent = fill(0.0, length(pairs[distance]))
-        Ns = fill(0.0, length(pairs[distance]))
-        # println("Computing entanglement for nodes at distance $(distance-1), λ = $λmean")
-        # flush(stdout)
-
-        Threads.@threads for j in 1:length(pairs[distance])
-        # for j in 1:length(pairs[distance])
-            v1, v2 = pairs[distance][j]
-            sol = find_path(g, v1, v2, samples=600, σ=0.5, progressbar=false)
-            if !isnothing(sol)
-                path, λ, N = sol
-                ent[j] = 2*(1 - λ)
-                Ns[j] = N
-            end
-        end
-        println("Finished distance $(distance - 1)")
-        println()
-        flush(stdout)
-
-        mean_ent[distance-1] = mean(ent)
-        mean_N[distance-1] = mean(Ns)
-    end
-
-    file = open("out_files/$(topology)_$n/mean/$(i)_$(λmean).out", "w")
-    for dist in eachindex(mean_ent)
-        write(file, "$(dist) $(mean_ent[dist]) $(mean_N[dist]) \n")
-    end
-
-    flush(file)
-    close(file)
-end
-
-function run_dev(n, i, λmean, σ, topology, sample)
-    g = eval(Symbol(topology))(n, σ=σ, λmean=λmean)
-
-    pairs = pairs_by_distance(g)
-
-    @assert isapprox(mean(get_weights(g, pair...) for pair in pairs[1]), λmean)
-
-    println("Mean of links: $λmean")
-    println()
-    flush(stdout)
-    mean_ent = fill(0.0, length(sort(collect(keys(pairs)))[2:end]))
-    mean_N = fill(0.0, length(sort(collect(keys(pairs)))[2:end]))
+    # Cache sorted distances
+    sorted_distances = sort(collect(keys(pairs)))[2:end]
     
-    Threads.@threads for distance in sort(collect(keys(pairs)))[2:end]
-        ent = fill(0.0, length(pairs[distance]))
-        Ns = fill(0.0, length(pairs[distance]))
-        # println("Computing entanglement for nodes at distance $(distance-1), λ = $λmean")
-        # flush(stdout)
+    mean_ent = fill(0.0, length(sorted_distances))
+    mean_N = fill(0.0, length(sorted_distances))
 
+    # Parallelize across all distances
+    Threads.@threads for idx in 1:length(sorted_distances)
+        distance = sorted_distances[idx]
+        ent = Vector{Float64}(undef, length(pairs[distance]))
+        Ns = Vector{Float64}(undef, length(pairs[distance]))
+
+        # Parallelize over pairs for each distance
         Threads.@threads for j in 1:length(pairs[distance])
             v1, v2 = pairs[distance][j]
             sol = find_path(g, v1, v2, samples=600, σ=0.5, progressbar=false)
@@ -71,31 +24,54 @@ function run_dev(n, i, λmean, σ, topology, sample)
                 path, λ, N = sol
                 ent[j] = 2*(1 - λ)
                 Ns[j] = N
+            else
+                ent[j] = 0.0  # Handle case where no solution is found
+                Ns[j] = 0.0
             end
         end
+
         println("Finished distance $(distance - 1)")
         println()
         flush(stdout)
 
-        mean_ent[distance-1] = mean(ent)
-        mean_N[distance-1] = mean(Ns)
+        mean_ent[idx] = mean(ent)
+        mean_N[idx] = mean(Ns)
     end
 
-    file = open("out_files/$(replace(topology, r"noisy_" => ""))_$n/std_dev=$(σ)/$(sample)/$(i)_$(λmean).out", "w")
-    for dist in eachindex(mean_ent)
-        write(file, "$(dist) $(mean_ent[dist]) $(mean_N[dist]) \n")
-    end
-    flush(file)
-    close(file)
+    return sorted_distances, mean_ent, mean_N
 end
 
 function run(topology, N, i, λmean, std_dev, sample)
+    println("Mean of links: $λmean")
+    println()
+    flush(stdout)
+
     if std_dev == 0
-        run_mean(N, i, λmean, topology)
+        g = eval(Symbol(topology))(N, λ=λmean)
+        sorted_distances, mean_ent, mean_N = percolate(g)
+
+        file = open("out_files/$(topology)_$N/mean/$(i)_$(λmean).out", "w")
+        
+        for dist_idx in eachindex(mean_ent)
+            write(file, "$(sorted_distances[dist_idx]-1) $(mean_ent[dist_idx]) $(mean_N[dist_idx]) \n")
+        end
+
+        flush(file)
+        close(file)
     else
-        run_dev(N, i, λmean, std_dev, topology, sample)
+        g = eval(Symbol(topology))(N, σ=σ, λmean=λmean)
+        @assert isapprox(mean(get_weights(g, pair...) for pair in pairs[1]), λmean)
+        sorted_distances, mean_ent, mean_N = percolate(g)
+
+        file = open("out_files/$(replace(topology, r"noisy_" => ""))_$N/std_dev=$(σ)/$(sample)/$(i)_$(λmean).out", "w")
+        for dist_idx in eachindex(mean_ent)
+            write(file, "$(sorted_distances[dist_idx]-1) $(mean_ent[dist_idx]) $(mean_N[dist_idx]) \n")
+        end
+        flush(file)
+        close(file)
     end
 end
+
 
 topology = ARGS[1]
 N = parse(Int64, ARGS[2])
