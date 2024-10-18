@@ -39,6 +39,9 @@ function percolate(g)
             return mean(ent), mean(Ns)
         end
     end
+    
+    println()
+    flush(stdout)
 
     # Wait for all tasks to complete and collect the results
     for idx in 1:length(sorted_distances)
