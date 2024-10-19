@@ -13,9 +13,6 @@ function percolate(g)
     # Parallelize across all distances using spawn
     results = Vector{Task}(undef, length(sorted_distances))
 
-    # Assuming THREAD_CHUNK_SIZE is predefined or set based on system resources
-    THREAD_CHUNK_SIZE = 10
-
     for idx in eachindex(sorted_distances)
         results[idx] = Threads.@spawn begin
             distance = sorted_distances[idx]
@@ -24,6 +21,7 @@ function percolate(g)
             Ns = Vector{Float64}(undef, num_pairs)
 
             # Process pairs in chunks
+            THREAD_CHUNK_SIZE = max(1, div(length(pairs[distance]), Threads.nthreads()))
             num_chunks = ceil(Int, num_pairs / THREAD_CHUNK_SIZE)
 
             Threads.@threads for chunk_idx in 1:num_chunks
@@ -59,6 +57,9 @@ function percolate(g)
     for idx in 1:length(sorted_distances)
         mean_ent[idx], mean_N[idx] = fetch(results[idx])
     end
+
+    println("Done")
+    flush(stdout)
 
     return sorted_distances, mean_ent, mean_N
 end

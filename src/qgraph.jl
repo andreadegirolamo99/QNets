@@ -84,10 +84,12 @@ function adjacency_list_and_labels(g::QGraph)
         if typeof(weights) <: Vector
             for w in weights
                 append!(adj_list[v1], v2)
+                append!(adj_list[v2], v1)
                 edge_labels[(v1, v2)] = string(weights)
             end
         else
             append!(adj_list[v1], v2)
+            append!(adj_list[v2], v1)
             edge_labels[(v1, v2)] = string(weights)
         end
     end

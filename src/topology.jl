@@ -297,10 +297,7 @@ function fully_connected_honeycomb(n::Int64; λ=0.5)
 
     if mod(n, 2) == 0
         v1, v2, v3 = splice!(vertices, 1:3)
-        add_edge!(g, vertex_end, v1, λ)
-        add_edge!(g, v1, v2, λ)
         add_edge!(g, v2, v3, λ)
-        add_edge!(g, v3, ends[end], λ)
         hexagon[size(hexagon)[1], size(hexagon)[2]][4] = v1
         hexagon[size(hexagon)[1], size(hexagon)[2]][5] = v2
         hexagon[size(hexagon)[1], size(hexagon)[2]][6] = v3
