@@ -1,9 +1,9 @@
 import os
 import numpy as np
 
-N = 10
-topologies = ["honeycomb"]#["square_lattice", "diagonal_square_lattice", "honeycomb", "fully_connected_honeycomb"]
-sigmas = [0]#[0, 0.01, 0.07]
+N = 16
+topologies = ["square_lattice", "diagonal_square_lattice"]#["square_lattice", "diagonal_square_lattice", "honeycomb", "fully_connected_honeycomb"]
+sigmas = [0, 0.01, 0.07]
 lambdas = np.arange(0.5, 1.005, 1/200)
 n_samples = 1
 samples = []
