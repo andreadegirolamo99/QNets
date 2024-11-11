@@ -82,11 +82,11 @@ function run(topology, N, i, λmean, std_dev, sample)
         flush(file)
         close(file)
     else
-        g = eval(Symbol(topology))(N, σ=σ, λmean=λmean)
+        g = eval(Symbol(topology))(N, σ=std_dev, λmean=λmean)
         @assert isapprox(mean(get_weights(g, pair...) for pair in pairs[1]), λmean)
         sorted_distances, mean_ent, mean_N = percolate(g)
 
-        file = open("out_files/$(replace(topology, r"noisy_" => ""))_$N/std_dev=$(σ)/$(sample)/$(i)_$(λmean).out", "w")
+        file = open("out_files/$(replace(topology, r"noisy_" => ""))_$N/std_dev=$(std_dev)/$(sample)/$(i)_$(λmean).out", "w")
         for dist_idx in eachindex(mean_ent)
             write(file, "$(sorted_distances[dist_idx]-1) $(mean_ent[dist_idx]) $(mean_N[dist_idx]) \n")
         end
@@ -104,5 +104,3 @@ std_dev = round(parse(Float64, ARGS[5]), digits=2)
 sample = parse(Int64, ARGS[6])
 
 run(topology, N, i, λmean, std_dev, sample)
-
-# run_dev(6, 1, 0.01)
