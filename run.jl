@@ -83,7 +83,7 @@ function run(topology, N, i, λmean, std_dev, sample)
         close(file)
     else
         g = eval(Symbol(topology))(N, σ=std_dev, λmean=λmean)
-        @assert isapprox(mean(get_weights(g, pair...) for pair in pairs[1]), λmean)
+        @assert isapprox(mean(get_weights(g, pair...) for pair in keys(g.edges)), λmean)
         sorted_distances, mean_ent, mean_N = percolate(g)
 
         file = open("out_files/$(replace(topology, r"noisy_" => ""))_$N/std_dev=$(std_dev)/$(sample)/$(i)_$(λmean).out", "w")
