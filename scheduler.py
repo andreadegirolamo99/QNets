@@ -6,8 +6,8 @@ topologies = ["square_lattice", "diagonal_square_lattice"]#["square_lattice", "d
 sigmas = [0, 0.01, 0.07]
 lambdas = np.arange(0.5, 1.005, 1/200)
 n_samples = 1
-samples = []
 
+actual_samples = []
 for topology in topologies:
     if not os.path.isdir("out_files/{}_{}".format(topology, N)):
         os.mkdir("out_files/{}_{}".format(topology, N))
@@ -21,19 +21,16 @@ for topology in topologies:
                 os.mkdir("out_files/{}_{}/std_dev={}".format(topology, N, sigma))
 
             s_num = 1 if not os.listdir("out_files/{}_{}/std_dev={}".format(topology, N, sigma)) else max([int(sample) for sample in os.listdir("out_files/{}_{}/std_dev={}".format(topology, N, sigma))]) + 1
-            for sample in range(n_samples):
+            actual_samples = [i for i in range(s_num, s_num + n_samples)]
+            for sample in actual_samples:
                 os.mkdir("out_files/{}_{}/std_dev={}/{}".format(topology, N, sigma, s_num))
-                samples.append(s_num)
-                s_num += 1
-
-
 
 for topology in topologies:
     for (i, lambda_) in enumerate(lambdas):
         for sigma in sigmas:
             if sigma > 0:
                 topology_ = "noisy_" + topology
-                for sample in samples:
+                for sample in actual_samples:
                     os.system('sbatch ./qnets.sh ' + topology_ + ' ' + str(N) + ' ' + str(i+1) + ' ' + str(lambda_) + ' ' + str(sigma) + ' ' + str(sample))
             else:
                 os.system('sbatch ./qnets.sh ' + topology + ' ' + str(N) + ' ' + str(i+1) + ' ' + str(lambda_) + ' ' + str(sigma) + ' ' + str(0))
