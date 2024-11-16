@@ -477,7 +477,7 @@ end
 function noisy_fully_connected_honeycomb(n::Int64; λmean=0.5, σ=0.01)
     g = QGraph(2*n*(n+2))
 
-    λs = sample_λ(12*n^2 + 4*n - 1, 0.5, 1, λmean, σ)
+    λs = sample_λ(12*n^2 + 4*n - 4, 0.5, 1, λmean, σ)
 
     prev_hex_vs = []
 
