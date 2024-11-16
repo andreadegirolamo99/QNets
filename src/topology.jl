@@ -625,10 +625,7 @@ function noisy_fully_connected_honeycomb(n::Int64; λmean=0.5, σ=0.01)
 
     if mod(n, 2) == 0
         v1, v2, v3 = splice!(vertices, 1:3)
-        add_edge!(g, vertex_end, v1, splice!(λs, rand(1:length(λs))))
-        add_edge!(g, v1, v2, splice!(λs, rand(1:length(λs))))
         add_edge!(g, v2, v3, splice!(λs, rand(1:length(λs))))
-        add_edge!(g, v3, ends[end], splice!(λs, rand(1:length(λs))))
         hexagon[size(hexagon)[1], size(hexagon)[2]][4] = v1
         hexagon[size(hexagon)[1], size(hexagon)[2]][5] = v2
         hexagon[size(hexagon)[1], size(hexagon)[2]][6] = v3
