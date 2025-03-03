@@ -121,8 +121,7 @@ function adjMat(g::QGraph)
     return sparse(rows, cols, vals, n, n)
 end
 
-# Plot the graph using graphplot
-function plot_graph(g::QGraph)
+function plot_graph(g::QGraph, file_path::String)
     adj_list, edge_labels = adjacency_list_and_labels(g)
     names = string.(1:length(g.vertices))
     # Calculate grid layout dimensions
@@ -136,15 +135,18 @@ function plot_graph(g::QGraph)
     coords_x = map(Float64, coords_x)
     coords_y = map(Float64, coords_y)
     
-    # Plot the graph with specified parameters
-    graphplot(adj_list, 
-              names=names, 
-              nodeshape=:circle, 
-              self_edge_size=0.4,
-              nodesize = 0.2,
-              arrow=false,
-              coords=(coords_x, coords_y)
+    # Create the graph plot
+    plt = graphplot(adj_list, 
+                    names=names, 
+                    nodeshape=:circle, 
+                    self_edge_size=0.4,
+                    nodesize=0.2,
+                    arrow=false,
+                    coords=(coords_x, coords_y)
     )
+    
+    # Save the plot to the specified file path
+    savefig(plt, file_path)
 end
 
 function distance(g::QGraph, v::Int64)
