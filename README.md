@@ -1,6 +1,6 @@
 # Percolation Thresholds and Connectivity in Quantum Networks
 
-This repository contains the code and supplementary materials associated with the paper:
+This repository contains the code and data associated with the paper:
 
 **Percolation Thresholds and Connectivity in Quantum Networks**  
 *Author(s): Andrea De Girolamo, Giuseppe Magnifico, Cosmo Lupo*  
