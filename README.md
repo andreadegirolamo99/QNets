@@ -12,7 +12,7 @@ We study entanglement percolation in qubit-based planar quantum network models o
 
 The algorithm combines locally optimal percolation strategies between nodes at a maximum distance of one swapping operation. If this fails to produce a maximally entangled state, it looks for alternative paths surrounding intermediate states within the process. We analytically find and numerically verify thresholds in quantum percolation, which depend on the initial network configuration and entanglement, and are associated with specific percolation strategies.
 
-We classify these strategies based on the *connectivity*, a quantity that relates the entanglement in the final state and the level of integrity of the network at the end of the process. We find distinct regimes of quantum percolation, clearly separated by percolation thresholds that vary significantly with the underlying topology.
+We classify these strategies based on the *connectivity*, a quantity that relates the entanglement in the final state, and the level of integrity of the network at the end of the process. We find distinct regimes of quantum percolation, clearly separated by percolation thresholds that vary significantly with the underlying topology.
 
 ## 🚀 Project Overview
 
