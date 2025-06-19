@@ -4,7 +4,7 @@ This repository contains the code and supplementary materials associated with th
 
 **Percolation Thresholds and Connectivity in Quantum Networks**  
 *Author(s): Andrea De Girolamo, Giuseppe Magnifico, Cosmo Lupo*  
-*Preprint/Published version: [arXiv:2502.17191](https://arxiv.org/abs/2502.17191)*
+*Preprint: [arXiv:2502.17191](https://arxiv.org/abs/2502.17191)*
 
 ## 📄 Abstract
 
